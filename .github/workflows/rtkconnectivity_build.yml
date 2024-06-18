@@ -1,0 +1,49 @@
+name: Build ZMK
+
+run-name: ${{ github.event_name }} by ${{ github.actor}}
+
+on: 
+    push:
+    pull_request:
+    schedule:
+        - cron: "0 0 * * *"
+jobs:
+    Build_ZMk:
+        runs-on: ubuntu-latest
+
+        container:
+            image: ghcr.io/zephyrproject-rtos/ci:v0.26.11
+            options: "--entrypoint /bin/bash"
+        
+        steps:
+            - name: set_env
+              run: |
+                if [ "${{ github.event_name }}" == "pull_request" -o "${{ github.event_name }}" == "pull_request_target" ]; then
+                    echo "This is pull request"
+                    echo "ZMK_REPOSITORY=${{ github.repository }}" >> $GITHUB_ENV
+                    echo "ZMK_REF=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+                fi
+
+                if [ "${{github.event_name}} " = "push" ];then
+                    echo "This is push"
+                    echo "ZMK_REPOSITORY=${{ github.repository }}" >> $GITHUB_ENV
+                    echo "ZMK_REF=${{ github.ref }}" >> $GITHUB_ENV
+                fi
+            
+            - name: print_env
+              run: |
+                echo "sdk-version -> ${ZSDK_VERISON}"
+                echo "zephyr-manifest-repository -> ${ZMK_REPOSITORY}"
+                echo "zephyr-manifest-ref: ${ZMK_REF}"
+            
+            - id: checkout-build
+              uses: catherine-guo-2024/actions-west-checkout-for-event@v1.0
+              with:
+                zephyr-manifest-repository: ${{ env.ZMK_REPOSITORY }}
+                zephyr-manifest-ref: ${{ env.ZMK_REF }}
+                zephyr-manifest-local-path: "zmk"
+                west-root-path: "zmk"
+                west-init-cmd: "-l app"
+                west-build-cmd: "-p -b rtl8762gn_evb -- -DSHIELD=rtk_keyboard"
+                west-build-path: "app"
+
